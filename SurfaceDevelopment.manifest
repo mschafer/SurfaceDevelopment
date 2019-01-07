@@ -1,0 +1,10 @@
+{
+	"autodeskProduct":	"Fusion360",
+	"type":	"script",
+	"author":	"Marc Schafer",
+	"description":	{
+		"":	"Flattens developable faces."
+	},
+	"supportedOS":	"windows|mac",
+	"editEnabled":	true
+}
