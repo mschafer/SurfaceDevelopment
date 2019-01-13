@@ -24,17 +24,40 @@ class FlattenCommandExecuteHandler(adsk.core.CommandEventHandler):
             input0 = inputs[0];     # faces to flatten
             sel0 = input0.selection(0);
             face = sel0.entity
+            faceEval = face.evaluator
             loops = face.loops
             outerLoop = loops[0]
             
             # coEdges are 2D in parameter space of the face
             # use edge instead but direction might be reversed
-            for i in range(outerLoop.coEdges.count):
-                ce = outerLoop.coEdges.item(i)
-                e = ce.evaluator
-                (ret, t0, t1) = e.getParameterExtents()
-                print("edge")
-                
+            for iedge in range(outerLoop.coEdges.count):
+                ce = outerLoop.coEdges.item(iedge)
+                reversed = ce.isOpposedToEdge
+                e = ce.edge
+                eval = e.evaluator
+                (ret, t0, t1) = eval.getParameterExtents()
+                tstep = (t1 - t0) / 2.
+                if reversed:
+                    t0, t1 = t1, t0
+                    tstep = -tstep
+
+                t = t0
+                for it in range(3):
+                    (ret, p) = eval.getPointAtParameter(t)
+                    (ret, r_t) = eval.getFirstDerivative(t)
+                    (ret, r_tt) = eval.getSecondDerivative(t)
+                    (ret, tangent) = eval.getTangent(t)
+                    (ret, curvature, curveMag) = eval.getCurvature(t)
+                    ret = curvature.scaleBy(curveMag)
+                    
+                    (ret, sparam) = faceEval.getParameterAtPoint(p)
+                    (ret, maxTangent, maxCurvature, minCurvature) = faceEval.getCurvature(sparam)
+                    (ret, surfaceNormal) = faceEval.getNormalAtPoint(p)
+                    tmp = surfaceNormal.crossProduct(tangent)
+                    curve_geo = curvature.dotProduct(tmp)
+                    t = t + tstep
+                    
+                    
 
             input1 = inputs[1];     # sketch
            
