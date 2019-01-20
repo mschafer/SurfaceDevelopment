@@ -27,10 +27,11 @@ class FlattenCommandExecuteHandler(adsk.core.CommandEventHandler):
             faceEval = face.evaluator
             loops = face.loops
             outerLoop = loops[0]
-            
+            fitTolerance = .01 # database units, cm
             # coEdges are 2D in parameter space of the face
             # use edge instead but direction might be reversed
             for iedge in range(outerLoop.coEdges.count):
+                print ("--------------- edge " + str(iedge) + "---------------")
                 ce = outerLoop.coEdges.item(iedge)
                 reversed = ce.isOpposedToEdge
                 e = ce.edge
@@ -40,6 +41,18 @@ class FlattenCommandExecuteHandler(adsk.core.CommandEventHandler):
                 if reversed:
                     t0, t1 = t1, t0
                     tstep = -tstep
+
+                (ret, lineFit) = eval.getStrokes(t0, t1, fitTolerance)
+                for ifit in range(len(lineFit)):
+                    p = lineFit[ifit].asArray()
+                    (ret, tFit) = eval.getParameterAtPoint(lineFit[ifit])
+                    if not ret:
+                        ui.messageBox('getParameterAtPoint_NG')
+                        return
+                        
+                    print(str(p) + " @ " + str(tFit))
+                    
+                    
 
                 t = t0
                 for it in range(3):
