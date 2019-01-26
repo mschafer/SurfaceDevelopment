@@ -2,7 +2,8 @@
 #Description-Flattens developable faces.
 
 import adsk.core, adsk.fusion, adsk.cam, traceback
-import os
+import os, math
+from .flatten import FlatEdge
 
 # global set of event handlers to keep them referenced for the duration of the command
 handlers = []
@@ -33,19 +34,24 @@ class FlattenCommandExecuteHandler(adsk.core.CommandEventHandler):
             for iedge in range(outerLoop.coEdges.count):
                 print ("--------------- edge " + str(iedge) + "---------------")
                 ce = outerLoop.coEdges.item(iedge)
-                reversed = ce.isOpposedToEdge
+                opposed = ce.isOpposedToEdge
+                
+                fe = FlatEdge(ce.edge, face)
+                fe.flatten()                
+                
+                
                 e = ce.edge
-                eval = e.evaluator
-                (ret, t0, t1) = eval.getParameterExtents()
+                edgeEval = e.evaluator
+                (ret, t0, t1) = edgeEval.getParameterExtents()
                 tstep = (t1 - t0) / 2.
-                if reversed:
+                if opposed:
                     t0, t1 = t1, t0
                     tstep = -tstep
 
-                (ret, lineFit) = eval.getStrokes(t0, t1, fitTolerance)
+                (ret, lineFit) = edgeEval.getStrokes(t0, t1, fitTolerance)
                 for ifit in range(len(lineFit)):
                     p = lineFit[ifit].asArray()
-                    (ret, tFit) = eval.getParameterAtPoint(lineFit[ifit])
+                    (ret, tFit) = edgeEval.getParameterAtPoint(lineFit[ifit])
                     if not ret:
                         ui.messageBox('getParameterAtPoint_NG')
                         return
@@ -56,11 +62,11 @@ class FlattenCommandExecuteHandler(adsk.core.CommandEventHandler):
 
                 t = t0
                 for it in range(3):
-                    (ret, p) = eval.getPointAtParameter(t)
-                    (ret, r_t) = eval.getFirstDerivative(t)
-                    (ret, r_tt) = eval.getSecondDerivative(t)
-                    (ret, tangent) = eval.getTangent(t)
-                    (ret, curvature, curveMag) = eval.getCurvature(t)
+                    (ret, p) = edgeEval.getPointAtParameter(t)
+                    (ret, r_t) = edgeEval.getFirstDerivative(t)
+                    (ret, r_tt) = edgeEval.getSecondDerivative(t)
+                    (ret, tangent) = edgeEval.getTangent(t)
+                    (ret, curvature, curveMag) = edgeEval.getCurvature(t)
                     ret = curvature.scaleBy(curveMag)
                     
                     (ret, sparam) = faceEval.getParameterAtPoint(p)
