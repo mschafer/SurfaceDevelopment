@@ -6,6 +6,7 @@ Created on Sun Jan  6 19:29:35 2019
 @author: mschafer
 """
 import math
+from functools import partial
 
 # https://blogs.mathworks.com/cleve/2014/05/26/ordinary-differential-equation-solvers-ode23-and-ode45/
 def ode23(f, x0):
@@ -44,9 +45,18 @@ def ode23(f, x0):
 def rhs(t, x):
     return [-math.sin(t), math.cos(t)]
 
+class Circle:
+    def __init__(self, radius):
+        self.radius = radius
+        
+    def rhs(self, t, x):
+        return [-math.sin(t)*self.radius, math.cos(t)*self.radius]
+
 if __name__ == "__main__":
     print ("hello world")
-    f = rhs
+    circ = Circle(4)
+    # f= rhs
+    f = partial(Circle.rhs, circ)
     e = ode23(f, [1, 0])
     print ("error " + repr(e))
     
