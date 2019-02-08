@@ -1,6 +1,6 @@
 import adsk.core, adsk.fusion, adsk.cam, traceback
 import os, math
-
+from .ode23 import ode23
 
 class FlatEdge:
     
@@ -28,7 +28,13 @@ class FlatEdge:
         tvec = [t0]
         for idx in range(1, len(d)):
             tvec.append(t0 + (t1-t0)*d[idx]/d[-1])
-            
+        
+            f = partial(FlatEdge.rhs, self)
+            e = ode23(f, [1, 0])
+        
+        
+        
+        
         for t in tvec:
             (ret, p) = edgeEval.getPointAtParameter(t)
             (ret, r_t) = edgeEval.getFirstDerivative(t)
