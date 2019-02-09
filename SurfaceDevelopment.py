@@ -2,8 +2,7 @@
 #Description-Flattens developable faces.
 
 import adsk.core, adsk.fusion, adsk.cam, traceback
-import os, math
-from .flatten import FlatEdge
+from .flatten import FlatLoop
 
 # global set of event handlers to keep them referenced for the duration of the command
 handlers = []
@@ -25,58 +24,10 @@ class FlattenCommandExecuteHandler(adsk.core.CommandEventHandler):
             input0 = inputs[0];     # faces to flatten
             sel0 = input0.selection(0);
             face = sel0.entity
-            faceEval = face.evaluator
             loops = face.loops
             outerLoop = loops[0]
-            fitTolerance = .01 # database units, cm
-            # coEdges are 2D in parameter space of the face
-            # use edge instead but direction might be reversed
-            for iedge in range(outerLoop.coEdges.count):
-                print ("--------------- edge " + str(iedge) + "---------------")
-                ce = outerLoop.coEdges.item(iedge)
-                opposed = ce.isOpposedToEdge
-                
-                fe = FlatEdge(ce.edge, face)
-                fe.flatten()                
-                
-                
-                e = ce.edge
-                edgeEval = e.evaluator
-                (ret, t0, t1) = edgeEval.getParameterExtents()
-                tstep = (t1 - t0) / 2.
-                if opposed:
-                    t0, t1 = t1, t0
-                    tstep = -tstep
+            FlatLoop(outerLoop)
 
-                (ret, lineFit) = edgeEval.getStrokes(t0, t1, fitTolerance)
-                for ifit in range(len(lineFit)):
-                    p = lineFit[ifit].asArray()
-                    (ret, tFit) = edgeEval.getParameterAtPoint(lineFit[ifit])
-                    if not ret:
-                        ui.messageBox('getParameterAtPoint_NG')
-                        return
-                        
-                    print(str(p) + " @ " + str(tFit))
-                    
-                    
-
-                t = t0
-                for it in range(3):
-                    (ret, p) = edgeEval.getPointAtParameter(t)
-                    (ret, r_t) = edgeEval.getFirstDerivative(t)
-                    (ret, r_tt) = edgeEval.getSecondDerivative(t)
-                    (ret, tangent) = edgeEval.getTangent(t)
-                    (ret, curvature, curveMag) = edgeEval.getCurvature(t)
-                    ret = curvature.scaleBy(curveMag)
-                    
-                    (ret, sparam) = faceEval.getParameterAtPoint(p)
-                    (ret, maxTangent, maxCurvature, minCurvature) = faceEval.getCurvature(sparam)
-                    (ret, surfaceNormal) = faceEval.getNormalAtPoint(p)
-                    tmp = surfaceNormal.crossProduct(tangent)
-                    curve_geo = curvature.dotProduct(tmp)
-                    t = t + tstep
-                    
-                    
 
             input1 = inputs[1];     # sketch
            
