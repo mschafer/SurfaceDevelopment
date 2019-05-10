@@ -3,7 +3,7 @@ import os, math
 from .ode23 import ode23
 from functools import partial
 
-fitTolerance = .1 # cm database units
+fitTolerance = .01 # cm database units
 
 class FlatLoop:
     def __init__(self, loop):
@@ -51,32 +51,26 @@ class FlatLoop:
             fe = FlatEdge(ce.edge, loop.face, ce.isOpposedToEdge)
             flatEdges.append(fe)
             
-
-
-            
-            
-
-
-            
         # edges are flattened to origin and tangent to x axis
-        # translate and rotate each edge to correct relative orientation
-            
-        #TODO need to take into account initial angle of 2nd edge which is not necessarily 0
-        # a third term in call to rotate
+        # attach the beginning of the next edge to the end of the previous one
+        # rotate so the angle between the two matches that of the edges prior to flattening
         for iedge in range(1, len(flatEdges)):
-            beginAngle = flatEdges[iedge-1].tangents[1]
-            print("begin: ", math.degrees(beginAngle))
+            endAngle = flatEdges[iedge-1].tangents[1] # angle at end of previous edge
+            print("endAngle: ", math.degrees(endAngle))
+            initAngle = flatEdges[iedge].tangents[0]
+            print("initAngle: ", math.degrees(initAngle))
             print ("rel: ", math.degrees(relAngle[iedge]))
-            flatEdges[iedge].rotate(flatEdges[iedge-1].tangents[1] + relAngle[iedge])
+            flatEdges[iedge].rotate(endAngle + relAngle[iedge] - initAngle)
             
             # translate to endpoint of previous edge
             x0 = flatEdges[iedge-1].points[-1][0]
             y0 = flatEdges[iedge-1].points[-1][1]
             flatEdges[iedge].translateTo(x0, y0)
             
-#        for fe in flatEdges:
-#            print(fe.points[0])
-#            print(fe.points[-1])
+        print("-------------------------------------------------")
+        for fe in flatEdges:
+            print(fe.points[0])
+            print(fe.points[-1])
 
 
 class FlatEdge:
