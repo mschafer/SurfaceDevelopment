@@ -8,7 +8,9 @@ fitTolerance = .1 # cm database units
 class FlatLoop:
     def __init__(self, loop):
         flatEdges = []
-        tangents = [] #tangents at the end of each edge
+        relAngle = []
+        firstTangent = adsk.core.Vector3D.create()
+        lastTangent = adsk.core.Vector3D.create()
         # coEdges are ordered head to tail CCW around outside loop (CW on inner loop)
         for iedge in range(loop.coEdges.count):
             ce = loop.coEdges.item(iedge)
@@ -24,43 +26,57 @@ class FlatLoop:
             print("tang:  ", tang1.x, tang1.y, tang1.z)
             print("-------------------------------------------------")
             
+            # tangent at beginning (in loop direction) of this edge
+            if ce.isOpposedToEdge:
+                firstTangent = tang1
+                firstTangent.scaleBy(-1.)
+            else:
+                firstTangent = tang0;
+            
+            if iedge > 0:
+                relAngle.append(lastTangent.angleTo(firstTangent))
+            else:
+                relAngle.append(0.)
+            
+            # tangent at end (in loop direction) for relAngle next time around
+            # in the direction of the loop
+            if ce.isOpposedToEdge:
+                lastTangent = tang0
+                lastTangent.scaleBy(-1.)
+            else:
+                lastTangent = tang1
+                                            
+            # flatten each edge around the loop
+            # use the edge instead of coEdge becuase we need the 3d evaluator
+            fe = FlatEdge(ce.edge, loop.face, ce.isOpposedToEdge)
+            flatEdges.append(fe)
+            
+
+
             
             
-            
-            
-            
-#            
-#            fe = FlatEdge(ce.edge, loop.face, ce.isOpposedToEdge)
-#            flatEdges.append(fe)
-#            
-#            eeval = ce.edge.evaluator
-#            (ret, t0, t1) = eeval.getParameterExtents()
-#            if ce.isOpposedToEdge:
-#                (ret, tangent1) = eeval.getFirstDerivative(t0)
-#                tangent1.scaleBy(-1.)
-#                
-#            else:
-#                (ret, tangent1) = eeval.getFirstDerivative(t1)
-#            tangents.append(tangent1)
-            
-        for tt in tangents:
-            print(tt.x, tt.y, tt.z)
+
+
             
         # edges are flattened to origin and tangent to x axis
         # translate and rotate each edge to correct relative orientation
+            
+        #TODO need to take into account initial angle of 2nd edge which is not necessarily 0
+        # a third term in call to rotate
         for iedge in range(1, len(flatEdges)):
-            # relative angle between the end of this edge and the previous one
-            relAngle = tangents[iedge-1].angleTo(tangents[iedge])
-            flatEdges[iedge].rotate(flatEdges[iedge-1].tangents[1] + relAngle)
+            beginAngle = flatEdges[iedge-1].tangents[1]
+            print("begin: ", math.degrees(beginAngle))
+            print ("rel: ", math.degrees(relAngle[iedge]))
+            flatEdges[iedge].rotate(flatEdges[iedge-1].tangents[1] + relAngle[iedge])
             
             # translate to endpoint of previous edge
             x0 = flatEdges[iedge-1].points[-1][0]
             y0 = flatEdges[iedge-1].points[-1][1]
             flatEdges[iedge].translateTo(x0, y0)
             
-        for fe in flatEdges:
-            print(fe.points[0])
-            print(fe.points[-1])
+#        for fe in flatEdges:
+#            print(fe.points[0])
+#            print(fe.points[-1])
 
 
 class FlatEdge:
@@ -111,8 +127,13 @@ class FlatEdge:
             self.tangents[0] = self.tangents[0] + math.radians(180.)
             self.tangents[1] = self.tangents[1] + math.radians(180.)
             
-        print ("edge flattened")
-    
+        print ("------------- edge flattened ----------------")
+        print("start: ", self.points[0])
+        print("tang:  ", self.tangents[0])
+        print("end:   ", self.points[-1])
+        print("tang:  ", self.tangents[-1])
+
+
     # translate the entire flattened edge so that the first point is at x,y
     def translateTo(self, x, y):
         dx = x - self.points[0][0]
