@@ -22,7 +22,7 @@ class FlattenCommandExecuteHandler(adsk.core.CommandEventHandler):
             inputs = command.commandInputs
 
             input0 = inputs[0];     # faces to flatten
-            sel0 = input0.selection(0);
+            sel0 = input0.selection(0)
             face = sel0.entity
             loops = face.loops
             outerLoop = loops[0]
@@ -84,7 +84,7 @@ class FlattenCommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
             inputs = cmd.commandInputs
             i0 = inputs.addSelectionInput('FlattenFaces', 'Faces to flatten', 'Please select faces to flatten')
             i0.setSelectionLimits(1, 0)
-            i0.addSelectionFilter(adsk.core.SelectionCommandInput.Faces);
+            i0.addSelectionFilter(adsk.core.SelectionCommandInput.Faces)
             
             i1 = inputs.addSelectionInput('Sketch', 'Flattened Sketch', 'Sketch to add flattened faces to')
             i1.addSelectionFilter(adsk.core.SelectionCommandInput.Sketches)

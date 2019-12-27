@@ -31,7 +31,7 @@ class FlatLoop:
                 firstTangent = tang1
                 firstTangent.scaleBy(-1.)
             else:
-                firstTangent = tang0;
+                firstTangent = tang0
             
             if iedge > 0:
                 relAngle.append(lastTangent.angleTo(firstTangent))
@@ -87,6 +87,10 @@ class FlatEdge:
         # determine steps for IVP integration using fit strokes        
         (ret, t0, t1) = edgeEval.getParameterExtents()
         (ret, strokes) = edgeEval.getStrokes(t0, t1, fitTolerance)
+        
+
+        # getParameterAtPoints thread is here:
+        # https://forums.autodesk.com/t5/fusion-360-api-and-scripts/getparameteratpoint-returning-incorrect-value/m-p/8548381/highlight/true#M7248
         
         #(ret, tvec) = edgeEval.getParametersAtPoints(strokes)
         # since getParametersAtPoints is currently broken
