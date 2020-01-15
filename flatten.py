@@ -7,7 +7,7 @@ fitTolerance = .01 # cm database units
 
 class FlatLoop:
     def __init__(self, loop):
-        flatEdges = []
+        self.flatEdges = []
         relAngle = []
         firstTangent = adsk.core.Vector3D.create()
         lastTangent = adsk.core.Vector3D.create()
@@ -49,28 +49,39 @@ class FlatLoop:
             # flatten each edge around the loop
             # use the edge instead of coEdge becuase we need the 3d evaluator
             fe = FlatEdge(ce.edge, loop.face, ce.isOpposedToEdge)
-            flatEdges.append(fe)
+            self.flatEdges.append(fe)
             
         # edges are flattened to origin and tangent to x axis
         # attach the beginning of the next edge to the end of the previous one
         # rotate so the angle between the two matches that of the edges prior to flattening
-        for iedge in range(1, len(flatEdges)):
-            endAngle = flatEdges[iedge-1].tangents[1] # angle at end of previous edge
+        for iedge in range(1, len(self.flatEdges)):
+            endAngle = self.flatEdges[iedge-1].tangents[1] # angle at end of previous edge
             print("endAngle: ", math.degrees(endAngle))
-            initAngle = flatEdges[iedge].tangents[0]
+            initAngle = self.flatEdges[iedge].tangents[0]
             print("initAngle: ", math.degrees(initAngle))
             print ("rel: ", math.degrees(relAngle[iedge]))
-            flatEdges[iedge].rotate(endAngle + relAngle[iedge] - initAngle)
+            self.flatEdges[iedge].rotate(endAngle + relAngle[iedge] - initAngle)
             
             # translate to endpoint of previous edge
-            x0 = flatEdges[iedge-1].points[-1][0]
-            y0 = flatEdges[iedge-1].points[-1][1]
-            flatEdges[iedge].translateTo(x0, y0)
+            x0 = self.flatEdges[iedge-1].points[-1][0]
+            y0 = self.flatEdges[iedge-1].points[-1][1]
+            self.flatEdges[iedge].translateTo(x0, y0)
             
         print("-------------------------------------------------")
-        for fe in flatEdges:
+        for fe in self.flatEdges:
             print(fe.points[0])
             print(fe.points[-1])
+
+        # calculate the bounding box
+        self.boundingBox = [0., 0., 0., 0.]
+        for fe in self.flatEdges:
+            b = fe.boundingBox()
+            self.boundingBox[0] = min(self.boundingBox[0], b[0])
+            self.boundingBox[1] = min(self.boundingBox[1], b[1])
+            self.boundingBox[2] = max(self.boundingBox[2], b[2])
+            self.boundingBox[3] = max(self.boundingBox[3], b[3])
+
+        print("-------------------------------------------------")
 
 
 class FlatEdge:
@@ -149,8 +160,17 @@ class FlatEdge:
             yn = pt[0]*math.sin(theta) + pt[1]*math.cos(theta)
             pt[0] = xn
             pt[1] = yn
+
+    # returns the bounding box as a list of floats [xmin, ymin, xmax, ymax]
+    def boundingBox(self):
+        bbox = [0., 0., 0., 0.]
+        for pt in self.points:
+            bbox[0] = min(bbox[0], pt[0])
+            bbox[1] = min(bbox[1], pt[1])
+            bbox[2] = max(bbox[2], pt[0])
+            bbox[3] = max(bbox[3], pt[1])
+        return bbox
             
- 
     # rhs for ODE, state vector is (x, y, x_t, y_t) 
     def rhs(self, t, state):
         state_t = [state[2], state[3], 0., 0.]

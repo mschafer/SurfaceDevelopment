@@ -2,7 +2,12 @@
 #Description-Flattens developable faces.
 
 import adsk.core, adsk.fusion, adsk.cam, traceback
-from .flatten import FlatLoop
+
+try:
+    from .flatten import FlatLoop
+except Exception as e:
+    print(e)
+
 
 # global set of event handlers to keep them referenced for the duration of the command
 handlers = []
@@ -120,3 +125,62 @@ def run(context):
     except:
         if ui:
             ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
+
+
+
+def addSketchSpline(flatLoop, sketch):
+    normal = sketch.xDirection.crossProduct(sketch.yDirection)
+    normal.transformBy(sketch.transform)
+    origin = sketch.origin
+    origin.transformBy(sketch.transform)
+    rotationMatrix = None
+    translationMatrix = None
+    Xvector = adsk.core.Vector3D.create(1.0, 0.0, 0.0)   # X axis
+    Yvector = adsk.core.Vector3D.create(0.0, 1.0, 0.0)   # Y axis
+    Zvector = adsk.core.Vector3D.create(0.0, 0.0, 1.0)   # Z axis
+
+    if sketch.xDirection.isParallelTo(Xvector):
+        if sketch.yDirection.isParallelTo(Yvector):
+            # XY plane, inverted normal angles
+            # ui.messageBox('XY Plane')
+            rotationMatrix = adsk.core.Matrix3D.create()
+            rotationMatrix.setToRotation(math.radians(-AOI), normal, origin)
+            translationMatrix = adsk.core.Matrix3D.create()
+            translationMatrix.translation = adsk.core.Vector3D.create(OffsetX, OffsetY, 0.0)
+    if sketch.xDirection.isParallelTo(Zvector):
+        if sketch.yDirection.isParallelTo(Yvector):
+            # YZ plane, - 90 degrees
+            # ui.messageBox('YZ plane')
+            rotationMatrix = adsk.core.Matrix3D.create()
+            rotationMatrix.setToRotation(math.radians(AOI - 90.0), normal, origin)
+            translationMatrix = adsk.core.Matrix3D.create()
+            translationMatrix.translation = adsk.core.Vector3D.create(-OffsetY, OffsetX, 0.0)
+    if sketch.xDirection.isParallelTo(Xvector):
+        if sketch.yDirection.isParallelTo(Zvector):
+            # XZ plane, inverted normal angles
+            # ui.messageBox('XZ plane')
+            rotationMatrix = adsk.core.Matrix3D.create()
+            rotationMatrix.setToRotation(math.radians(-AOI), normal, origin)
+            translationMatrix = adsk.core.Matrix3D.create()
+            translationMatrix.translation = adsk.core.Vector3D.create(OffsetX, -OffsetY, 0.0)
+        
+#        translationMatrix = adsk.core.Matrix3D.create()
+#        translationMatrix.translation = adsk.core.Vector3D.create(OffsetX, OffsetY, 0.0)
+
+
+    for fe in flatLoop.flatEdges:
+        points = adsk.core.ObjectCollection.create()
+        for pt in fe.points:
+            x = pt[0]
+            y = pt[1]
+
+            if sketch.xDirection.isParallelTo(Xvector):
+                if sketch.yDirection.isParallelTo(Zvector):
+                    # XZ plane, mirrored Y
+                    y = -1.0 * y
+            point = adsk.core.Point3D.create(x, y, 0.0)
+            point.transformBy(rotationMatrix)
+            point.transformBy(translationMatrix)            
+            points.add(point)
+    
+        sketch.sketchCurves.sketchFittedSplines.add(points)
