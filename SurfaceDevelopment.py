@@ -1,7 +1,7 @@
 #Author-Marc Schafer
 #Description-Flattens developable faces.
 
-import adsk.core, adsk.fusion, adsk.cam, traceback
+import adsk.core, adsk.fusion, adsk.cam, traceback, math
 
 try:
     from .flatten import FlatLoop
@@ -31,11 +31,13 @@ class FlattenCommandExecuteHandler(adsk.core.CommandEventHandler):
             face = sel0.entity
             loops = face.loops
             outerLoop = loops[0]
-            FlatLoop(outerLoop)
+            fl = FlatLoop(outerLoop)
 
+            input1 = inputs[1]     # sketch
+            sel1 = input1.selection(0)
+            sketch = sel1.entity
+            addSketchSpline(fl, sketch)
 
-            input1 = inputs[1];     # sketch
-           
             #airfoil = Airfoil();
             #airfoil.Execute(sel0.entity, input1.value, input2.value, input3.value, input4.value);
         except:
@@ -152,7 +154,7 @@ def addSketchSpline(flatLoop, sketch):
             # YZ plane, - 90 degrees
             # ui.messageBox('YZ plane')
             rotationMatrix = adsk.core.Matrix3D.create()
-            rotationMatrix.setToRotation(math.radians(AOI - 90.0), normal, origin)
+            rotationMatrix.setToRotation(math.radians(-90.0), normal, origin)
             translationMatrix = adsk.core.Matrix3D.create()
             translationMatrix.translation = adsk.core.Vector3D.create(-OffsetY, OffsetX, 0.0)
     if sketch.xDirection.isParallelTo(Xvector):
@@ -179,8 +181,8 @@ def addSketchSpline(flatLoop, sketch):
                     # XZ plane, mirrored Y
                     y = -1.0 * y
             point = adsk.core.Point3D.create(x, y, 0.0)
-            point.transformBy(rotationMatrix)
-            point.transformBy(translationMatrix)            
+            #point.transformBy(rotationMatrix)
+            #point.transformBy(translationMatrix)            
             points.add(point)
     
         sketch.sketchCurves.sketchFittedSplines.add(points)
