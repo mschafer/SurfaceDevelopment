@@ -34,19 +34,26 @@ class FlattenCommandExecuteHandler(adsk.core.CommandEventHandler):
                 face = facesel.entity
                 loops = face.loops
                 outerLoop = loops[0]
-                flattened.append(FlatLoop(outerLoop))
+                fl = FlatLoop(outerLoop)
+                flattened.append(fl)
 
             input1 = inputs[1]     # sketch
             sel1 = input1.selection(0)
             plane = sel1.entity
             root = design.rootComponent
             sketch = root.sketches.add(plane)
+            lines = sketch.sketchCurves.sketchLines
 
+            # add all the flattened loops to a sketch spaced out along the x axis
+            x = 0.
+            y = 0.
             for fl in flattened:
+                dx = x - fl.boundingBox[0]
+                dy = y - fl.boundingBox[1]
+                fl.translateBy(dx, dy)
                 addSketchSpline(fl, sketch)
+                x = fl.boundingBox[2] + 1.
 
-            #airfoil = Airfoil();
-            #airfoil.Execute(sel0.entity, input1.value, input2.value, input3.value, input4.value);
         except:
             if ui:
                 ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
@@ -119,16 +126,21 @@ def run(context):
             ui.messageBox('No active Fusion design', title)
             return
 
-        # create a command
+        # delete the command if it already exists otherwise the dialog contains multiple copies of all the buttons
+        # this seems to happen when the script errors out in the debugger
         commandDefinitions = ui.commandDefinitions
         cmdDef = commandDefinitions.itemById('FlattenCmdDef')
-        if not cmdDef:
-            cmdDef = ui.commandDefinitions.addButtonDefinition('FlattenCmdDef', 'Flatten Command', 'Flatten tooltip')
+        if cmdDef:
+            cmdDef.deleteMe()
+            handlers = []
 
+        # create a command
+        cmdDef = ui.commandDefinitions.addButtonDefinition('FlattenCmdDef', 'Flatten Command', 'Flatten tooltip')
         onCommandCreated = FlattenCommandCreatedHandler()
         cmdDef.commandCreated.add(onCommandCreated)
         # keep the handler referenced beyond this function
         handlers.append(onCommandCreated)
+
         inputs = adsk.core.NamedValues.create()
         cmdDef.execute(inputs)
 

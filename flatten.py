@@ -72,7 +72,11 @@ class FlatLoop:
             print(fe.points[0])
             print(fe.points[-1])
 
-        # calculate the bounding box
+        self.calcBoundingBox()
+        print("-------------------------------------------------")
+
+    # calculate the axis aligned bounding box of the flattened loop
+    def calcBoundingBox(self):
         self.boundingBox = [0., 0., 0., 0.]
         for fe in self.flatEdges:
             b = fe.boundingBox()
@@ -81,7 +85,20 @@ class FlatLoop:
             self.boundingBox[2] = max(self.boundingBox[2], b[2])
             self.boundingBox[3] = max(self.boundingBox[3], b[3])
 
-        print("-------------------------------------------------")
+    def rotate(self, theta):
+        for fe in self.flatEdges:
+            fe.rotate(theta)
+
+        self.calcBoundingBox()
+
+    def translateBy(self, dx, dy):
+        for fe in self.flatEdges:
+            fe.translateBy(dx, dy)
+
+        self.boundingBox[0] = self.boundingBox[0] + dx
+        self.boundingBox[1] = self.boundingBox[1] + dy
+        self.boundingBox[2] = self.boundingBox[2] + dx
+        self.boundingBox[3] = self.boundingBox[3] + dy
 
 
 class FlatEdge:
@@ -147,11 +164,14 @@ class FlatEdge:
     def translateTo(self, x, y):
         dx = x - self.points[0][0]
         dy = y - self.points[0][1]
+        self.translateBy(dx, dy)
+
+    def translateBy(self, dx, dy):
         for pt in self.points:
             pt[0] = pt[0] + dx
             pt[1] = pt[1] + dy
     
-    # rotate the entire flattened edge so the first segment is at the given angle
+    # rotate the entire flattened edge by the given angle
     def rotate(self, theta):
         self.tangents[0] = self.tangents[0] + theta
         self.tangents[1] = self.tangents[1] + theta
