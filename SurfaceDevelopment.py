@@ -8,15 +8,11 @@ try:
 except Exception as e:
     print(e)
 
+_app = None
+_ui  = None
 
 # global set of event handlers to keep them referenced for the duration of the command
-handlers = []
-app = adsk.core.Application.get()
-if app:
-    ui  = app.userInterface
-
-product = app.activeProduct
-design = adsk.fusion.Design.cast(product)
+_handlers = []
 
 class FlattenCommandExecuteHandler(adsk.core.CommandEventHandler):
     def __init__(self):
@@ -40,6 +36,8 @@ class FlattenCommandExecuteHandler(adsk.core.CommandEventHandler):
             input1 = inputs[1]     # sketch
             sel1 = input1.selection(0)
             plane = sel1.entity
+            product = _app.activeProduct
+            design = adsk.fusion.Design.cast(product)
             root = design.rootComponent
             sketch = root.sketches.add(plane)
             lines = sketch.sketchCurves.sketchLines
@@ -55,8 +53,8 @@ class FlattenCommandExecuteHandler(adsk.core.CommandEventHandler):
                 x = fl.boundingBox[2] + 1.
 
         except:
-            if ui:
-                ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
+            if _ui:
+                _ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
 
 class FlattenCommandDestroyHandler(adsk.core.CommandEventHandler):
     def __init__(self):
@@ -67,8 +65,8 @@ class FlattenCommandDestroyHandler(adsk.core.CommandEventHandler):
             # this will release all globals which will remove all event handlers
             adsk.terminate()
         except:
-            if ui:
-                ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
+            if _ui:
+                _ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
 
 class FlattenValidateInputHandler(adsk.core.ValidateInputsEventHandler):
     def __init__(self):
@@ -79,8 +77,8 @@ class FlattenValidateInputHandler(adsk.core.ValidateInputsEventHandler):
             args.areInputsValid = True
 
         except:
-            if ui:
-                ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
+            if _ui:
+                _ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
 
 
 class FlattenCommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
@@ -88,17 +86,22 @@ class FlattenCommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
         super().__init__()
     def notify(self, args):
         try:
-            cmd = args.command
+            # Get the command that was created.
+            cmd = adsk.core.Command.cast(args.command)
+
+            # Connect to the command execute event.
             onExecute = FlattenCommandExecuteHandler()
             cmd.execute.add(onExecute)
+            _handlers.append(onExecute)
+
+            # Connect to the command destroyed event.
             onDestroy = FlattenCommandDestroyHandler()
             cmd.destroy.add(onDestroy)
+            _handlers.append(onDestroy)
+
 
             #onValidateInput = FlattenValidateInputHandler()
             #cmd.validateInputs.add(onValidateInput)
-            # keep the handler referenced beyond this function
-            handlers.append(onExecute)
-            handlers.append(onDestroy)
             #handlers.append(onValidateInput)
             
             #define the inputs
@@ -115,41 +118,35 @@ class FlattenCommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
             i1.addSelectionFilter(adsk.core.SelectionCommandInput.RootComponents)
 
         except:
-            if ui:
-                ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
+            if _ui:
+                _ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
 
 def run(context):
     try:
-        
-        title = 'Flatten'
-        if not design:
-            ui.messageBox('No active Fusion design', title)
-            return
+        global _app, _ui
+        _app = adsk.core.Application.get()
+        _ui = _app.userInterface
 
-        # delete the command if it already exists otherwise the dialog contains multiple copies of all the buttons
-        # this seems to happen when the script errors out in the debugger
-        commandDefinitions = ui.commandDefinitions
-        cmdDef = commandDefinitions.itemById('FlattenCmdDef')
-        if cmdDef:
-            cmdDef.deleteMe()
-            handlers = []
+        # Get the existing command definition or create it if it doesn't already exist.
+        cmdDef = _ui.commandDefinitions.itemById('FlattenCmdDef')
+        if not cmdDef:
+            cmdDef = _ui.commandDefinitions.addButtonDefinition('FlattenCmdDef', 'Flatten Command', 'Flatten tooltip')
 
-        # create a command
-        cmdDef = ui.commandDefinitions.addButtonDefinition('FlattenCmdDef', 'Flatten Command', 'Flatten tooltip')
-        onCommandCreated = FlattenCommandCreatedHandler()
-        cmdDef.commandCreated.add(onCommandCreated)
-        # keep the handler referenced beyond this function
-        handlers.append(onCommandCreated)
+            # Connect to the command created event.
+            onCommandCreated = FlattenCommandCreatedHandler()
+            cmdDef.commandCreated.add(onCommandCreated)
+            _handlers.append(onCommandCreated)
 
+        # Execute the command definition.
         inputs = adsk.core.NamedValues.create()
         cmdDef.execute(inputs)
 
-        # prevent this module from being terminate when the script returns, because we are waiting for event handlers to fire
+        # Prevent this module from being terminated when the script returns, because we are waiting for event handlers to fire.
         adsk.autoTerminate(False)
 
     except:
-        if ui:
-            ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
+        if _ui:
+            _ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
 
 
 
