@@ -17,6 +17,7 @@ _handlers = []
 class FlattenCommandExecuteHandler(adsk.core.CommandEventHandler):
     def __init__(self):
         super().__init__()
+
     def notify(self, args):
         try:
             command = args.firingEvent.sender
@@ -132,10 +133,10 @@ def run(context):
         if not cmdDef:
             cmdDef = _ui.commandDefinitions.addButtonDefinition('FlattenCmdDef', 'Flatten Command', 'Flatten tooltip')
 
-            # Connect to the command created event.
-            onCommandCreated = FlattenCommandCreatedHandler()
-            cmdDef.commandCreated.add(onCommandCreated)
-            _handlers.append(onCommandCreated)
+        # Connect to the command created event.
+        onCommandCreated = FlattenCommandCreatedHandler()
+        cmdDef.commandCreated.add(onCommandCreated)
+        _handlers.append(onCommandCreated)
 
         # Execute the command definition.
         inputs = adsk.core.NamedValues.create()
