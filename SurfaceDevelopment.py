@@ -1,10 +1,10 @@
 #Author-Marc Schafer
 #Description-Flattens developable faces.
 
-import adsk.core, adsk.fusion, adsk.cam, traceback, math, os, glob
+import adsk.core, adsk.fusion, adsk.cam, traceback, math, os, glob, pickle
 
 try:
-    from .flatten import FlatLoop
+    from .flatten import FlatLoop, RawLoop
 except Exception as e:
     print(e)
 
@@ -25,6 +25,7 @@ class FlattenCommandExecuteHandler(adsk.core.CommandEventHandler):
 
             # faces to flatten
             flattened = []
+            raw = []
             input0 = inputs[0]
             for isel in range(input0.selectionCount):
                 facesel = input0.selection(isel)
@@ -33,6 +34,13 @@ class FlattenCommandExecuteHandler(adsk.core.CommandEventHandler):
                 outerLoop = loops[0]
                 fl = FlatLoop(outerLoop)
                 flattened.append(fl)
+                raw.append(RawLoop(outerLoop))
+
+            # pickle raw flattened data
+            # path to folder containing this module
+            os.path.dirname(os.path.abspath(__file__))
+            pickle.dump(raw, open( "save.p", "wb" ))
+            # raw = pickle.load( open("save.p", "rb"))
 
             input1 = inputs[1]     # sketch
             sel1 = input1.selection(0)

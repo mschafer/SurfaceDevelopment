@@ -13,13 +13,6 @@ class FlatLoop:
         firstTangent = adsk.core.Vector3D.create()
         lastTangent = adsk.core.Vector3D.create()
         # coEdges are ordered head to tail CCW around outside loop (CW on inner loop)
-        
-        
-        print ("working in ", os.getcwd())
-        # path to folder containing this module
-        os.path.dirname(os.path.abspath(__file__))
-
-
         for iedge in range(loop.coEdges.count):
             ce = loop.coEdges.item(iedge)
             raw.append(RawEdge(ce))
@@ -240,7 +233,6 @@ class RawLoop:
             self.edges.append(RawEdge(ce))
 
 class RawEdge:
-    
     def __init__(self, coEdge):
         self.needsReverse = coEdge.isOpposedToEdge
         self.length3d = coEdge.edge.length
