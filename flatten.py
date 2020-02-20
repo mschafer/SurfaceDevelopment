@@ -1,5 +1,5 @@
 import adsk.core, adsk.fusion, adsk.cam, traceback
-import os, math
+import os, math, array
 from .ode23 import ode23
 from functools import partial
 
@@ -9,11 +9,20 @@ class FlatLoop:
     def __init__(self, loop):
         self.flatEdges = []
         relAngle = []
+        raw = []
         firstTangent = adsk.core.Vector3D.create()
         lastTangent = adsk.core.Vector3D.create()
         # coEdges are ordered head to tail CCW around outside loop (CW on inner loop)
+        
+        
+        print ("working in ", os.getcwd())
+        # path to folder containing this module
+        os.path.dirname(os.path.abspath(__file__))
+
+
         for iedge in range(loop.coEdges.count):
             ce = loop.coEdges.item(iedge)
+            raw.append(RawEdge(ce))
             eeval = ce.edge.evaluator            
             print("opposed:", ce.isOpposedToEdge)
             (ret, t0, t1) = eeval.getParameterExtents()
@@ -196,6 +205,104 @@ class FlatEdge:
         state_t = [state[2], state[3], 0., 0.]
         edgeEval = self.edge.evaluator
         faceEval = self.face.evaluator
+        
+        (ret, p) = edgeEval.getPointAtParameter(t)
+        (ret, r_t) = edgeEval.getFirstDerivative(t)
+        (ret, r_tt) = edgeEval.getSecondDerivative(t)
+        (ret, tangent) = edgeEval.getTangent(t)
+        tangent.normalize()
+        (ret, curveDir, curveMag) = edgeEval.getCurvature(t)
+        curveDir.normalize()
+        curvature = curveDir.copy()
+        curvature.scaleBy(curveMag)
+       
+        # TODO check the surface curvature to insure ruled surface? 
+        #(ret, sparam) = faceEval.getParameterAtPoint(p)
+        #(ret, maxTangent, maxCurvature, minCurvature) = faceEval.getCurvature(sparam)
+                
+        (ret, surfaceNormal) = faceEval.getNormalAtPoint(p)
+        surfaceNormal.normalize()
+        tmp = surfaceNormal.crossProduct(tangent)
+        curve_geo = curvature.dotProduct(tmp)
+        
+        A = r_t.dotProduct(r_tt) / r_t.dotProduct(r_t)
+        B = curve_geo * r_t.length
+        state_t[2] = A * state[2] - B * state[3]
+        state_t[3] = A * state[3] + B * state[2]
+        return state_t
+
+
+class RawLoop:
+    def __init__(self, loop):
+        self.edges = []
+        for iedge in range(loop.coEdges.count):
+            ce = loop.coEdges.item(iedge)
+            self.edges.append(RawEdge(ce))
+
+class RawEdge:
+    
+    def __init__(self, coEdge):
+        self.needsReverse = coEdge.isOpposedToEdge
+        self.length3d = coEdge.edge.length
+
+        eeval = coEdge.edge.evaluator            
+        (ret, sp, ep) = eeval.getEndPoints()
+        self.start3d = array.array('d', [sp.x, sp.y, sp.z])
+        self.end3d = array.array('d', [ep.x, ep.y, ep.z])
+
+        (ret, t0, t1) = eeval.getParameterExtents()
+        (ret, tang0) = eeval.getFirstDerivative(t0)
+        self.startTang3d = array.array('d', [tang0.x, tang0.y, tang0.z])
+        (ret, tang1) = eeval.getFirstDerivative(t1)
+        self.startTang3d = array.array('d', [tang1.x, tang1.y, tang1.z])
+
+        self.flatten(coEdge.edge, coEdge.loop.face)
+        
+    def flatten(self, edge, face):
+        edgeEval = edge.evaluator
+        
+        # determine steps for IVP integration using fit strokes        
+        (ret, t0, t1) = edgeEval.getParameterExtents()
+        (ret, strokes) = edgeEval.getStrokes(t0, t1, fitTolerance)
+        
+
+        # getParameterAtPoints thread is here:
+        # https://forums.autodesk.com/t5/fusion-360-api-and-scripts/getparameteratpoint-returning-incorrect-value/m-p/8548381/highlight/true#M7248
+        
+        #(ret, tvec) = edgeEval.getParametersAtPoints(strokes)
+        # since getParametersAtPoints is currently broken
+        # approximate parameter values at strokes by assuming
+        # the curve is constant speed
+        d = [0.]
+        for idx in range(1, len(strokes)):
+            d.append(d[idx-1] + strokes[idx].distanceTo(strokes[idx-1]))
+
+        # parameter value is proportional to distance for constant speed
+        tvec = [t0]
+        for idx in range(1, len(d)):
+            tvec.append(t0 + (t1-t0)*d[idx]/d[-1])
+
+        # initial point on plane is 0,0 and speed is mag(first derivative of curve) in X
+        (ret, r_t) = edgeEval.getFirstDerivative(t0)
+        x0 = [0., 0., r_t.length, 0.]
+        rhsFun = partial(RawEdge.rhs, self, edge, face)
+        [xOut, err] = ode23(rhsFun, x0, tvec)
+
+        self.tangents = [0.] # angle of tangent at start and end
+        self.tangents.append(math.atan2(xOut[-1][3], xOut[-1][2]))
+
+        self.points = []
+        self.slopes = []
+        for idx in range(len(xOut)):
+            v = xOut[idx]
+            self.points.append([v[0], v[1]])
+            self.slopes.append([v[2], v[3]])
+            
+    # rhs for ODE, state vector is (x, y, x_t, y_t) 
+    def rhs(self, edge, face, t, state):
+        state_t = [state[2], state[3], 0., 0.]
+        edgeEval = edge.evaluator
+        faceEval = face.evaluator
         
         (ret, p) = edgeEval.getPointAtParameter(t)
         (ret, r_t) = edgeEval.getFirstDerivative(t)

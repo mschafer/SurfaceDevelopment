@@ -1,7 +1,7 @@
 #Author-Marc Schafer
 #Description-Flattens developable faces.
 
-import adsk.core, adsk.fusion, adsk.cam, traceback, math
+import adsk.core, adsk.fusion, adsk.cam, traceback, math, os, glob
 
 try:
     from .flatten import FlatLoop
@@ -54,6 +54,7 @@ class FlattenCommandExecuteHandler(adsk.core.CommandEventHandler):
                 x = fl.boundingBox[2] + 1.
 
         except:
+            unimport()
             if _ui:
                 _ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
 
@@ -65,6 +66,7 @@ class FlattenCommandDestroyHandler(adsk.core.CommandEventHandler):
             # when the command is done, terminate the script
             # this will release all globals which will remove all event handlers
             adsk.terminate()
+            unimport()
         except:
             if _ui:
                 _ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
@@ -133,10 +135,11 @@ def run(context):
         if not cmdDef:
             cmdDef = _ui.commandDefinitions.addButtonDefinition('FlattenCmdDef', 'Flatten Command', 'Flatten tooltip')
 
-        # Connect to the command created event.
-        onCommandCreated = FlattenCommandCreatedHandler()
-        cmdDef.commandCreated.add(onCommandCreated)
-        _handlers.append(onCommandCreated)
+            # Connect to the command created event.
+            # put under the if above to prevent multiple buttons when debugging?
+            onCommandCreated = FlattenCommandCreatedHandler()
+            cmdDef.commandCreated.add(onCommandCreated)
+            _handlers.append(onCommandCreated)
 
         # Execute the command definition.
         inputs = adsk.core.NamedValues.create()
@@ -161,3 +164,20 @@ def addSketchSpline(flatLoop, sketch):
             points.add(point)
     
         sketch.sketchCurves.sketchFittedSplines.add(points)
+
+
+# unimport: delete the modules introduced by this Addin from the python cache.
+def unimport():
+
+    # Fetch the absolute path of this Addin's directory
+    cwd = os.path.abspath(os.path.dirname(__file__))
+
+    # walk through python files in the directory, and remove them from the
+    # python module cache.
+    for thisFile in glob.glob(cwd + "/*.py"):
+        thisModule = str(os.path.basename(thisFile).replace(".py", ""))
+        try:
+            del sys.modules[thisModule]
+        except (AttributeError, KeyError):
+            # Key will not exist if a .py file wasn't imported; Attribute will be wrong if it isn't a module
+            pass
