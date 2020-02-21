@@ -1,7 +1,8 @@
 #Author-Marc Schafer
 #Description-Flattens developable faces.
 
-import adsk.core, adsk.fusion, adsk.cam, traceback, math, os, glob, pickle
+import adsk.core, adsk.fusion, adsk.cam
+import traceback, math, os, glob, pickle, sys
 
 try:
     from .flatten import FlatLoop, RawLoop
@@ -36,12 +37,7 @@ class FlattenCommandExecuteHandler(adsk.core.CommandEventHandler):
                 flattened.append(fl)
                 raw.append(RawLoop(outerLoop))
 
-            # pickle raw flattened data
-            # path to folder containing this module
-            os.path.dirname(os.path.abspath(__file__))
-            pickle.dump(raw, open( "save.p", "wb" ))
-            # raw = pickle.load( open("save.p", "rb"))
-
+            saveRaw(raw)
             input1 = inputs[1]     # sketch
             sel1 = input1.selection(0)
             plane = sel1.entity
@@ -189,3 +185,17 @@ def unimport():
         except (AttributeError, KeyError):
             # Key will not exist if a .py file wasn't imported; Attribute will be wrong if it isn't a module
             pass
+
+def saveRaw(raw):
+    # pickle raw flattened data
+    # path to folder containing this module
+    dir = os.path.dirname(os.path.abspath(__file__))
+    fname = os.path.join(dir, "flat_save.p")    
+    pickle.dump(raw, open( fname, "wb" ))
+    
+if __name__ == "__main__":
+    # execute only if run as a script
+    dir = os.path.dirname(os.path.abspath(__file__))
+    fname = os.path.join(dir, "flat_save.p")
+    raw = pickle.load( open(fname, "rb"))
+    print(raw.length)

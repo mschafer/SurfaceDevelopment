@@ -1,5 +1,5 @@
-import adsk.core, adsk.fusion, adsk.cam, traceback
-import os, math, array
+#import adsk.core, adsk.fusion, adsk.cam
+import os, math, array, pickle, traceback
 from .ode23 import ode23
 from functools import partial
 
@@ -10,8 +10,6 @@ class FlatLoop:
         self.flatEdges = []
         relAngle = []
         raw = []
-        firstTangent = adsk.core.Vector3D.create()
-        lastTangent = adsk.core.Vector3D.create()
         # coEdges are ordered head to tail CCW around outside loop (CW on inner loop)
         for iedge in range(loop.coEdges.count):
             ce = loop.coEdges.item(iedge)
@@ -320,4 +318,3 @@ class RawEdge:
         state_t[2] = A * state[2] - B * state[3]
         state_t[3] = A * state[3] + B * state[2]
         return state_t
-         
