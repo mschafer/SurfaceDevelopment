@@ -1,11 +1,21 @@
 #Author-Marc Schafer
 #Description-Flattens developable faces.
+import adsk.core, adsk.fusion, adsk.cam, traceback
+import os, sys
 
-import adsk.core, adsk.fusion, adsk.cam
-import traceback, math, os, glob, pickle, sys
+#get the path of add-in
+my_addin_path = os.path.dirname(os.path.realpath(__file__)) 
+print(my_addin_path)
+
+#add the path to the searchable path collection
+if not my_addin_path in sys.path:
+   sys.path.append(my_addin_path) 
+
+import math, glob, pickle
 
 try:
-    from .flatten import FlatLoop, RawLoop
+    from .flatten import FlatLoop
+    from flat.raw import RawLoop
 except Exception as e:
     print(e)
 
@@ -192,10 +202,3 @@ def saveRaw(raw):
     dir = os.path.dirname(os.path.abspath(__file__))
     fname = os.path.join(dir, "flat_save.p")    
     pickle.dump(raw, open( fname, "wb" ))
-    
-if __name__ == "__main__":
-    # execute only if run as a script
-    dir = os.path.dirname(os.path.abspath(__file__))
-    fname = os.path.join(dir, "flat_save.p")
-    raw = pickle.load( open(fname, "rb"))
-    print(raw.length)
