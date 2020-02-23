@@ -36,18 +36,17 @@ class FlattenCommandExecuteHandler(adsk.core.CommandEventHandler):
 
             # faces to flatten
             flattened = []
-            raw = []
             input0 = inputs[0]
             for isel in range(input0.selectionCount):
                 facesel = input0.selection(isel)
                 face = facesel.entity
                 loops = face.loops
                 outerLoop = loops[0]
-                fl = FlatLoop(outerLoop)
-                flattened.append(fl)
-                raw.append(RawLoop(outerLoop))
+                raw = RawLoop(outerLoop)
+                raw.assemble()
+                flattened.append(raw)
 
-            saveRaw(raw)
+            saveRaw(flattened)
             input1 = inputs[1]     # sketch
             sel1 = input1.selection(0)
             plane = sel1.entity
@@ -60,12 +59,17 @@ class FlattenCommandExecuteHandler(adsk.core.CommandEventHandler):
             # add all the flattened loops to a sketch spaced out along the x axis
             x = 0.
             y = 0.
-            for fl in flattened:
-                dx = x - fl.boundingBox[0]
-                dy = y - fl.boundingBox[1]
-                fl.translateBy(dx, dy)
-                addSketchSpline(fl, sketch)
-                x = fl.boundingBox[2] + 1.
+            for loop in flattened:
+                dx = x - loop.boundingBox[0]
+                dy = y - loop.boundingBox[1]
+
+                for edge in loop.edges:
+                    xe, ye = edge.xy()
+                    xe = [pxe+dx for pxe in xe]
+                    ye = [pye+dy for pye in ye]
+                    addSketchSpline(xe, ye, sketch)
+                
+                x = x + loop.boundingBox[2] + 1.
 
         except:
             unimport()
@@ -167,17 +171,15 @@ def run(context):
             _ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
 
 
+def addSketchSpline(xe, ye, sketch):
+    points = adsk.core.ObjectCollection.create()
+    for i in range(len(xe)):
+        x = xe[i]
+        y = ye[i]
+        point = adsk.core.Point3D.create(x, y, 0.0)
+        points.add(point)
 
-def addSketchSpline(flatLoop, sketch):
-    for fe in flatLoop.flatEdges:
-        points = adsk.core.ObjectCollection.create()
-        for pt in fe.points:
-            x = pt[0]
-            y = pt[1]
-            point = adsk.core.Point3D.create(x, y, 0.0)
-            points.add(point)
-    
-        sketch.sketchCurves.sketchFittedSplines.add(points)
+    sketch.sketchCurves.sketchFittedSplines.add(points)
 
 
 # unimport: delete the modules introduced by this Addin from the python cache.
