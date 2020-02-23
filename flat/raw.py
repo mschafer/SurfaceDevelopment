@@ -1,4 +1,4 @@
-import os, math, array, pickle, traceback
+import os, math, array, pickle, traceback, statistics
 from .ode23 import ode23
 from functools import partial
 
@@ -32,6 +32,82 @@ class RawLoop:
             lastTangent = tang1
 
         self.relAngle[0] = tang1.angleTo(startTang)
+
+    def assemble(self):
+        # stretch edges to match length in 3d and reverse if needed
+        for edge in self.edges:
+            edge.correctLength()
+            if edge.needsReverse:
+                edge.reverse()
+        
+        # rotate edges to match corner angles in 3d
+        for iedge in range(1, len(self.edges)):
+            targetAngle = self.relAngle[iedge]
+            endTang = self.edges[iedge-1].tangents[-1]
+            endAngle = math.atan2(endTang[1], endTang[0])
+            startTang = self.edges[iedge].tangents[0]
+            startAngle = math.atan2(startTang[1], startTang[0])
+            actualAngle = startAngle - endAngle
+            rAngle = targetAngle - actualAngle
+            self.edges[iedge].rotate(rAngle)
+
+        # translate edges so they are end to end
+        for iedge in range(1, len(self.edges)):
+            endPt = self.edges[iedge-1].points[-1]
+            self.edges[iedge].translateTo(endPt[0], endPt[1])
+
+        # orient the shape close to vertical for tiling in 2d
+        self.orientVertical()
+
+        self.boundingBox = self.calcBoundingBox()
+
+        # return the close error
+        startPt = self.edges[0].points[0]
+        endPt = self.edges[-1].points[-1]
+        return math.hypot(endPt[0] - startPt[0], endPt[1] - startPt[1])
+
+    def rotate(self, theta):
+        for edge in self.edges:
+            edge.rotate(theta)
+
+    def calcBoundingBox(self):
+        bb = None
+        for edge in self.edges:
+            bbe = edge.calcBoundingBox()
+            if bb == None:
+                bb = bbe
+            else:
+                bb[0] = min(bb[0], bbe[0])
+                bb[1] = min(bb[1], bbe[1])
+                bb[2] = max(bb[2], bbe[2])
+                bb[3] = max(bb[3], bbe[3])
+        return bb
+    
+    def translateBy(self, dx, dy):
+        for edge in self.edges:
+            edge.translateBy(dx, dy)
+
+    def orientVertical(self):
+        x = array.array('d', [])
+        y = array.array('d', [])
+        for edge in self.edges:
+            xe, ye = edge.xy()
+            x.extend(xe)
+            y.extend(ye)
+
+        xmean = statistics.mean(x)
+        ymean = statistics.mean(y)
+        xy = 0.
+        xx = 0.
+        for i in range(len(x)):
+            xy = xy + (x[i] - xmean)*(y[i] - ymean)
+            xx = xx + (x[i] - xmean)*(x[i] - xmean)
+
+        angle = math.atan2(xy, xx)
+        pi = 4. * math.atan(1.)
+        self.rotate(pi/2. - angle)
+        bb = self.calcBoundingBox()
+        self.translateBy(-bb[0], -bb[1])
 
 class RawEdge:
     def __init__(self, coEdge):
@@ -143,6 +219,9 @@ class RawEdge:
     def translateTo(self, x, y):
         dx = x - self.points[0][0]
         dy = y - self.points[0][1]
+        self.translateBy(dx, dy)
+
+    def translateBy(self, dx, dy):
         for pt in self.points:
             pt[0] = pt[0] + dx
             pt[1] = pt[1] + dy
@@ -170,3 +249,20 @@ class RawEdge:
         th0 = math.atan2(self.tangents[0][1], self.tangents[0][0])
         self.rotate(th1 - th0)
         self.translateTo(p0[0], p0[1])
+
+    def xy(self):
+        x = array.array('d', [])
+        y = array.array('d', [])
+        for pt in self.points:
+            x.append(pt[0])
+            y.append(pt[1])
+        return x, y
+
+    def calcBoundingBox(self):
+        x, y = self.xy()
+        bbox = array.array('d', [0., 0., 0., 0.])
+        bbox[0] = min(x)
+        bbox[1] = min(y)
+        bbox[2] = max(x)
+        bbox[3] = max(y)
+        return bbox
