@@ -153,11 +153,11 @@ def run(context):
         if not cmdDef:
             cmdDef = _ui.commandDefinitions.addButtonDefinition('FlattenCmdDef', 'Flatten Command', 'Flatten tooltip')
 
-            # Connect to the command created event.
-            # put under the if above to prevent multiple buttons when debugging?
-            onCommandCreated = FlattenCommandCreatedHandler()
-            cmdDef.commandCreated.add(onCommandCreated)
-            _handlers.append(onCommandCreated)
+        # Connect to the command created event.
+        # put under the if above to prevent multiple buttons when debugging?
+        onCommandCreated = FlattenCommandCreatedHandler()
+        cmdDef.commandCreated.add(onCommandCreated)
+        _handlers.append(onCommandCreated)
 
         # Execute the command definition.
         inputs = adsk.core.NamedValues.create()

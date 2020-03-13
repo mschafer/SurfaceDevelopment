@@ -139,6 +139,11 @@ class RawEdge:
         for idx in range(1, len(self.d)):
             tvec.append(t0 + (t1-t0)*self.d[idx]/self.d[-1])
 
+        # an error will occur if either endpoint is outside of range by eps so squeeze end in by a tiny amount
+        dt = 1.e-13 * (tvec[-1] - tvec[0])
+        tvec[0] = t0 + dt
+        tvec[-1] = t1 - dt 
+
         # initial point on plane is 0,0 and speed is mag(first derivative of curve) in X
         (ret, r_t) = edgeEval.getFirstDerivative(t0)
         x0 = [0., 0., r_t.length, 0.]
