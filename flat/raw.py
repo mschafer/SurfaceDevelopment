@@ -1,5 +1,5 @@
 import os, math, array, pickle, traceback, statistics
-from .ode23 import ode23
+from .ode23 import ode23, linspace, estimateH, absTol, relTol
 from functools import partial
 
 fitTolerance = .01 # cm database units
@@ -148,7 +148,23 @@ class RawEdge:
         (ret, r_t) = edgeEval.getFirstDerivative(t0)
         x0 = [0., 0., r_t.length, 0.]
         rhsFun = partial(RawEdge.rhs, self, edge, face)
-        [xOut, err] = ode23(rhsFun, x0, tvec)
+        #[xOut, err] = ode23(rhsFun, x0, tvec)
+
+        xOut = []
+        xOut.append(x0)
+        for it in range(1, len(tvec)):
+            ts0 = tvec[it-1]
+            ts1 = tvec[it]
+            dt = ts1 - ts0
+            h = min(dt, estimateH(rhsFun, x0, tvec[it-1]))
+            steps = int(round(dt / h)) + 1
+            success = False
+            while not success:
+                tsvec = linspace(ts0, ts1, steps)
+                [xStep, success] = ode23(rhsFun, x0, tsvec)
+                steps = steps * 2
+            x0 = xStep[-1]
+            xOut.append(x0)
 
         # tangent = math.atan2(dy, dx)
 
@@ -158,6 +174,7 @@ class RawEdge:
             v = xOut[idx]
             self.points.append([v[0], v[1]])
             self.tangents.append([v[2], v[3]])
+        return
             
     # rhs for ODE, state vector is (x, y, x_t, y_t) 
     def rhs(self, edge, face, t, state):
