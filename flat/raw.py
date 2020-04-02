@@ -12,9 +12,18 @@ class RawLoop:
             ce = loop.coEdges.item(iedge)
             self.edges.append(RawEdge(ce))
 
-            eeval = ce.edge.evaluator            
+            eeval = ce.edge.evaluator
+            feval = ce.loop.face.evaluator            
             (ret, t0, t1) = eeval.getParameterExtents()
+
+            # first end
+            (ret, p0) = eeval.getPointAtParameter(t0)
+            (ret, n0) = feval.getNormalAtPoint(p0)
             (ret, tang0) = eeval.getFirstDerivative(t0)
+
+            # second end
+            (ret, p1) = eeval.getPointAtParameter(t1)
+            (ret, n1) = feval.getNormalAtPoint(p1)
             (ret, tang1) = eeval.getFirstDerivative(t1)
             
             # if reversed, swap tangents and reverse them
@@ -22,16 +31,27 @@ class RawLoop:
                 tang0.scaleBy(-1.)
                 tang1.scaleBy(-1.)
                 tang0, tang1 = tang1, tang0
+                p0, p1 = p1, p0
+                n0, n1 = n1, n0
             
             if iedge > 0:
-                self.relAngle.append(lastTangent.angleTo(tang0))
+                # need the signed angle
+                tangNormal = lastTangent.crossProduct(tang0)
+                angSign = tangNormal.dotProduct(n0)
+                ang = math.copysign(lastTangent.angleTo(tang0), angSign)
+                self.relAngle.append(ang)
             else:
-                startTang = tang0
+                firstTangent = tang0
+                firstNormal = n0
             
             # tangent at end (in loop direction) for relAngle next time around
             lastTangent = tang1
 
-        self.relAngle[0] = tang1.angleTo(startTang)
+        # first relative angle is between end of last edge and start of first
+        tangNormal = lastTangent.crossProduct(firstTangent)
+        angSign = tangNormal.dotProduct(firstNormal)
+        ang = math.copysign(lastTangent.angleTo(firstTangent), angSign)
+        self.relAngle.append(ang)
 
     def assemble(self):
         # stretch edges to match length in 3d and reverse if needed
